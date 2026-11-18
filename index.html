@@ -1,0 +1,1210 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Три семёрки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Press+Start+2P&display=swap">
+<style>
+/* Layout: one machine centered under a spotlight on casino felt; cabinet on the left, lever on the right. Single dark look by choice. */
+:root {
+  --felt: #12302a;
+  --felt-deep: #040d0a;
+  --lacquer: #8a1a28;
+  --lacquer-deep: #3a0810;
+  --brass: #c99a45;
+  --brass-light: #f7df9c;
+  --brass-dark: #6e4f1c;
+  --ivory: #fbf5e8;
+  --ink: #17100c;
+  --bulb-on: #ffd77e;
+  --bulb-off: #6b4a2a;
+  --glow: rgba(255, 190, 80, .7);
+  --line: rgba(255, 215, 120, .9);
+  --chrome-1: #f4f6f8;
+  --chrome-2: #8c949c;
+  --chrome-3: #3b4148;
+  --muted: rgba(247, 223, 156, .45);
+  --font-display: "Bungee", "Impact", "Arial Black", sans-serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 38%, #1f4a40 0%, transparent 70%),
+    radial-gradient(ellipse at 50% 120%, #000 0%, transparent 60%),
+    var(--felt-deep);
+  background-color: var(--felt-deep);
+  color: var(--brass-light);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+main {
+  min-height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- stage ---------- */
+.stage {
+  width: min(720px, 100%, 88vh);
+  container-type: inline-size;
+  position: relative;
+  display: grid;
+  grid-template-columns: 82fr 15fr;
+  grid-template-rows: auto auto;
+  gap: 0;
+  touch-action: none;
+  cursor: grab;
+}
+.stage.spinning, .stage.jackpot { cursor: default; }
+.stage::before { /* overhead spotlight */
+  content: "";
+  position: absolute;
+  left: -30%; right: -20%;
+  top: -40%; bottom: -10%;
+  background: radial-gradient(ellipse 50% 60% at 42% 45%, rgba(255, 226, 170, .10), transparent 70%);
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* ---------- neon topper ---------- */
+.topper {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  z-index: 3;
+  margin: 0 8cqw -1.6cqw;
+  padding: 1cqw 1cqw .4cqw;
+  border-radius: 40cqw 40cqw 1.4cqw 1.4cqw / 14cqw 14cqw 1.4cqw 1.4cqw;
+  background: linear-gradient(160deg, var(--brass-light), var(--brass) 40%, var(--brass-dark) 80%, var(--brass));
+  box-shadow: 0 1.5cqw 3cqw rgba(0,0,0,.55);
+}
+.topper-glass {
+  position: relative;
+  overflow: hidden;
+  border-radius: 40cqw 40cqw .8cqw .8cqw / 13cqw 13cqw .8cqw .8cqw;
+  padding: 3cqw 0 2.2cqw;
+  text-align: center;
+  background:
+    linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.07) 40%, rgba(255,255,255,0) 50%),
+    radial-gradient(ellipse 70% 90% at 50% 100%, #4a0d18 0%, #160609 75%);
+  box-shadow: inset 0 1cqw 2.4cqw rgba(0,0,0,.85);
+}
+.neon {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 10.5cqw;
+  line-height: 1;
+  letter-spacing: 1.6cqw;
+  padding-left: 1.6cqw;
+  color: #fff1e0;
+  text-shadow:
+    0 0 .4cqw #fff,
+    0 0 1.4cqw #ff5a6a,
+    0 0 3cqw #ff2a44,
+    0 0 6cqw #d0102c;
+}
+.neon { transition: opacity .2s; }
+
+/* jackpot ticker: replaces the 777 sign while the jackpot plays */
+.ticker {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.ticker::after { /* LED dot matrix */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 45%, rgba(10, 2, 4, .55) 60%) 0 0 / .9cqw .9cqw;
+}
+.ticker-track {
+  display: flex;
+  flex: none;
+  padding-left: 100%;
+  white-space: nowrap;
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 6.4cqw;
+  line-height: 1;
+  color: #fff0b8;
+  text-shadow: 0 0 .4cqw #fff, 0 0 1.4cqw #ffc94a, 0 0 3cqw #ff9a1a, 0 0 5cqw #e8650a;
+}
+.machine.jackpot .neon { opacity: 0; }
+.machine.jackpot .ticker { opacity: 1; }
+.machine.jackpot .ticker-track { animation: marquee 2.65s linear infinite; }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+.machine.spinning .neon { animation: flicker 1.1s linear infinite; }
+.machine.win .neon { animation: neonwin .45s ease-in-out infinite alternate; }
+@keyframes flicker {
+  0%, 18%, 22%, 62%, 66%, 100% { opacity: 1; }
+  20%, 64% { opacity: .55; }
+}
+@keyframes neonwin {
+  from { color: #fff1e0; text-shadow: 0 0 .4cqw #fff, 0 0 1.4cqw #ff5a6a, 0 0 3cqw #ff2a44, 0 0 6cqw #d0102c; }
+  to { color: #fffbea; text-shadow: 0 0 .6cqw #fff, 0 0 2cqw #ffe08a, 0 0 4.5cqw #ffb330, 0 0 9cqw #ff8a00; }
+}
+.stage::after { /* floor shadow */
+  content: "";
+  position: absolute;
+  left: 4%; right: 14%;
+  bottom: -5cqw;
+  height: 7cqw;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.75), transparent 70%);
+  z-index: -1;
+}
+
+/* ---------- cabinet ---------- */
+.cabinet {
+  grid-column: 1;
+  grid-row: 2;
+  position: relative;
+  z-index: 2;
+  padding: 1.1cqw;
+  border-radius: 7cqw 7cqw 3cqw 3cqw;
+  background: linear-gradient(160deg, var(--brass-light), var(--brass) 35%, var(--brass-dark) 70%, var(--brass) 100%);
+  box-shadow: 0 3cqw 6cqw rgba(0,0,0,.6), 0 0 0 .3cqw rgba(0,0,0,.4);
+}
+.body {
+  position: relative;
+  border-radius: 6cqw 6cqw 2.2cqw 2.2cqw;
+  padding: 3.6cqw 4cqw 3.4cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 3cqw;
+  background:
+    linear-gradient(100deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,0) 22%, rgba(255,255,255,0) 78%, rgba(0,0,0,.25) 100%),
+    linear-gradient(180deg, var(--lacquer) 0%, #6a1220 55%, var(--lacquer-deep) 100%);
+  box-shadow: inset 0 .5cqw 1cqw rgba(255,255,255,.12), inset 0 -1cqw 2cqw rgba(0,0,0,.45);
+}
+
+/* crown with marquee bulbs */
+.crown {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.6cqw 2.4cqw;
+  border-radius: 4cqw;
+  background: linear-gradient(180deg, #24110c, #120806);
+  box-shadow: inset 0 .4cqw 1cqw rgba(0,0,0,.8), 0 .25cqw 0 rgba(255,255,255,.08);
+}
+.bulb {
+  width: 3.2cqw;
+  height: 3.2cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3d0 0%, var(--bulb-off) 45%, #2d1c10 100%);
+  box-shadow: 0 0 0 .25cqw rgba(0,0,0,.4);
+  animation: chase 1.6s steps(1, end) infinite;
+  animation-delay: calc(var(--i) * -0.145s);
+}
+@keyframes chase {
+  0%, 30% {
+    background: radial-gradient(circle at 35% 30%, #fffbe9 0%, var(--bulb-on) 45%, #c47a1c 100%);
+    box-shadow: 0 0 0 .25cqw rgba(0,0,0,.3), 0 0 2cqw .4cqw rgba(255,190,80,.55);
+  }
+  31%, 100% {
+    background: radial-gradient(circle at 35% 30%, #fff3d0 0%, var(--bulb-off) 45%, #2d1c10 100%);
+    box-shadow: 0 0 0 .25cqw rgba(0,0,0,.4);
+  }
+}
+.machine.spinning .bulb { animation-duration: .55s; animation-delay: calc(var(--i) * -0.05s); }
+.machine.win .bulb { animation: blink .32s steps(1, end) infinite; animation-delay: calc((var(--i) % 2) * -0.16s); }
+@keyframes blink {
+  0%, 49% {
+    background: radial-gradient(circle at 35% 30%, #fffbe9 0%, var(--bulb-on) 45%, #c47a1c 100%);
+    box-shadow: 0 0 0 .25cqw rgba(0,0,0,.3), 0 0 2.4cqw .6cqw var(--glow);
+  }
+  50%, 100% {
+    background: radial-gradient(circle at 35% 30%, #fff3d0 0%, var(--bulb-off) 45%, #2d1c10 100%);
+    box-shadow: 0 0 0 .25cqw rgba(0,0,0,.4);
+  }
+}
+
+/* reel window */
+.window {
+  --cell: 17cqw;
+  --win: 34cqw;
+  --off: calc((var(--win) - var(--cell)) / 2);
+  position: relative;
+  padding: 1.5cqw;
+  border-radius: 3cqw;
+  background: linear-gradient(160deg, var(--brass-light), var(--brass) 40%, var(--brass-dark) 80%, var(--brass));
+  box-shadow: 0 1cqw 2cqw rgba(0,0,0,.5);
+}
+.window::before, .window::after { /* payline pointers */
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 0; height: 0;
+  border-top: 1.8cqw solid transparent;
+  border-bottom: 1.8cqw solid transparent;
+  transform: translateY(-50%);
+  z-index: 3;
+  filter: drop-shadow(0 .3cqw .3cqw rgba(0,0,0,.5));
+}
+.window::before { left: -1.4cqw; border-left: 2.4cqw solid var(--brass-light); }
+.window::after { right: -1.4cqw; border-right: 2.4cqw solid var(--brass-light); }
+.reels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1cqw;
+  padding: 1cqw;
+  border-radius: 1.8cqw;
+  background: var(--ink);
+  box-shadow: inset 0 .6cqw 1.2cqw rgba(0,0,0,.9);
+}
+.reel {
+  position: relative;
+  height: var(--win);
+  overflow: hidden;
+  border-radius: 1cqw;
+  background: linear-gradient(180deg, #8f8068 0%, #e9dec6 22%, var(--ivory) 50%, #e9dec6 78%, #8f8068 100%);
+}
+.reel::after { /* cylinder glass */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(10,4,2,.85) 0%, rgba(10,4,2,.25) 18%, rgba(0,0,0,0) 34%, rgba(0,0,0,0) 66%, rgba(10,4,2,.25) 82%, rgba(10,4,2,.9) 100%),
+    linear-gradient(100deg, rgba(255,255,255,0) 18%, rgba(255,255,255,.32) 28%, rgba(255,255,255,0) 40%),
+    linear-gradient(90deg, rgba(0,0,0,.18), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,.22));
+}
+.bounce { will-change: transform; }
+.bounce.thunk { animation: thunk .32s cubic-bezier(.3,.6,.4,1); }
+@keyframes thunk {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(1.1cqw); }
+  70% { transform: translateY(-.35cqw); }
+  100% { transform: translateY(0); }
+}
+.strip { will-change: transform; }
+.strip.blur .cell svg { filter: blur(.35cqw); transform: scaleY(1.12); }
+.cell {
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+}
+.cell svg {
+  width: 76%;
+  height: 86%;
+  overflow: visible;
+  filter: drop-shadow(0 .5cqw .4cqw rgba(60,30,10,.35));
+  transition: filter .25s;
+}
+.machine.win .cell.hit svg { animation: pulse .5s ease-in-out infinite alternate; }
+@keyframes pulse {
+  from { transform: scale(1); filter: drop-shadow(0 .5cqw .4cqw rgba(60,30,10,.35)); }
+  to { transform: scale(1.1); filter: drop-shadow(0 0 1.6cqw var(--glow)); }
+}
+.payline {
+  position: absolute;
+  left: 1.5cqw; right: 1.5cqw;
+  top: 50%;
+  height: .35cqw;
+  transform: translateY(-50%);
+  background: rgba(201, 154, 69, .0);
+  pointer-events: none;
+  z-index: 2;
+  transition: background .2s, box-shadow .2s;
+}
+.machine.win .payline { background: var(--line); box-shadow: 0 0 2cqw .5cqw var(--glow); }
+/* each triple celebrates in its own colour */
+.machine.win-0 { --bulb-on: #f7e7b8; --glow: rgba(247, 223, 156, .8); --line: rgba(247, 223, 156, .95); }
+.machine.win-1 { --bulb-on: #d7a6ff; --glow: rgba(176, 96, 255, .8); --line: rgba(205, 150, 255, .95); }
+.machine.win-2 { --bulb-on: #fff27a; --glow: rgba(255, 228, 60, .8); --line: rgba(255, 240, 120, .95); }
+.machine.win-0 .neon, .machine.win-1 .neon, .machine.win-2 .neon { animation: neonwin-c .45s ease-in-out infinite alternate; }
+@keyframes neonwin-c {
+  from { text-shadow: 0 0 .4cqw #fff, 0 0 1.4cqw #ff5a6a, 0 0 3cqw #ff2a44, 0 0 6cqw #d0102c; }
+  to { text-shadow: 0 0 .6cqw #fff, 0 0 2cqw var(--bulb-on), 0 0 4.5cqw var(--glow), 0 0 9cqw var(--glow); }
+}
+
+/* idle: the machine calls you over */
+.machine.idle .bulb { animation: sweep 1.45s steps(1, end) infinite; animation-delay: calc(var(--i) * .1s); }
+@keyframes sweep {
+  0%, 22% {
+    background: radial-gradient(circle at 35% 30%, #fffbe9 0%, var(--bulb-on) 45%, #c47a1c 100%);
+    box-shadow: 0 0 0 .25cqw rgba(0,0,0,.3), 0 0 2cqw .4cqw rgba(255,190,80,.55);
+  }
+  23%, 100% {
+    background: radial-gradient(circle at 35% 30%, #fff3d0 0%, var(--bulb-off) 45%, #2d1c10 100%);
+    box-shadow: 0 0 0 .25cqw rgba(0,0,0,.4);
+  }
+}
+.machine.idle .neon { animation: breathe 2.8s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  45% { opacity: .62; }
+  50% { opacity: .9; }
+  53% { opacity: .55; }
+  58% { opacity: 1; }
+}
+.arm { position: absolute; inset: 0; }
+.machine.idle .arm { animation: nudge 3.6s ease-in-out infinite; }
+@keyframes nudge {
+  0%, 78%, 100% { transform: translateY(0); }
+  84% { transform: translateY(2.2cqw); }
+  90% { transform: translateY(-.6cqw); }
+  95% { transform: translateY(.3cqw); }
+}
+
+/* floor: reflection and light pooling under the machine */
+.floor {
+  position: absolute;
+  left: -14%; right: -6%;
+  top: calc(100% - 1cqw);
+  height: 34cqw;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 38% 34% at 42% 0%, rgba(150, 28, 44, .42), transparent 72%),
+    radial-gradient(ellipse 52% 46% at 42% 0%, rgba(255, 200, 120, .08), transparent 75%);
+  transition: opacity .3s;
+}
+.floor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 40% 36% at 42% 0%, var(--glow), transparent 70%);
+  opacity: 0;
+  transition: opacity .3s;
+}
+.machine.win .floor::after { opacity: .55; }
+@supports (-webkit-box-reflect: below) {
+  .reflect { -webkit-box-reflect: below 1.2cqw linear-gradient(to bottom, rgba(0,0,0,0) 64%, rgba(0,0,0,.2)); }
+}
+
+/* suspense: two reels match, the third holds out */
+.reel { transition: filter .35s; }
+.machine.tease .reel:not(.tease) { filter: brightness(.55) saturate(.7); }
+.reel.tease { overflow: hidden; }
+.reel.tease::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 .5cqw #ffd77e, inset 0 0 3cqw 1cqw rgba(255, 170, 40, .55);
+  animation: holdout .38s ease-in-out infinite alternate;
+}
+@keyframes holdout {
+  from { opacity: .45; }
+  to { opacity: 1; }
+}
+.machine.tease .bulb { animation: blink .18s steps(1, end) infinite; animation-delay: calc((var(--i) % 2) * -0.09s); }
+.machine.tease .neon { animation: flicker .35s linear infinite; }
+.machine.tease .payline { background: rgba(255, 215, 120, .35); }
+.machine.tease .floor::after { opacity: .3; }
+
+/* coin tray */
+.tray {
+  position: relative;
+  height: 10cqw;
+  border-radius: 1.6cqw 1.6cqw 4cqw 4cqw;
+  background:
+    radial-gradient(circle, rgba(0,0,0,.85) 32%, transparent 36%) 0 0 / 1.6cqw 1.6cqw,
+    linear-gradient(180deg, var(--chrome-2) 0%, var(--chrome-1) 30%, var(--chrome-2) 70%, var(--chrome-3) 100%);
+  box-shadow: 0 0 0 .7cqw var(--brass), 0 0 0 1cqw var(--brass-dark), 0 1.2cqw 2cqw rgba(0,0,0,.5);
+  margin: .6cqw 3cqw .8cqw;
+}
+.tray::after { /* coin chute */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22cqw;
+  height: 4cqw;
+  transform: translate(-50%, -50%);
+  border-radius: 2cqw;
+  background: linear-gradient(180deg, #050202, #2a1710);
+  box-shadow: inset 0 .8cqw 1cqw rgba(0,0,0,.95), 0 0 0 .5cqw var(--brass), 0 0 0 .7cqw var(--brass-dark);
+}
+
+.tray-coins {
+  position: absolute;
+  left: 0;
+  top: -6cqw;
+  width: 100%;
+  height: calc(100% + 6cqw);
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity .35s;
+}
+.tray-coins.clear { opacity: 0; }
+
+/* ---------- lever ---------- */
+.lever {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  z-index: 1;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+  border-radius: 2cqw;
+}
+.lever:active { cursor: grabbing; }
+.lever:focus-visible .knob { box-shadow: 0 0 0 .7cqw var(--brass-light), 0 1.4cqw 2cqw rgba(0,0,0,.55); }
+.lever.locked { cursor: default; }
+.hub {
+  position: absolute;
+  left: -1cqw;
+  width: calc(55% + 1cqw);
+  top: calc(55% - 5cqw);
+  height: 10cqw;
+  border-radius: 0 2cqw 2cqw 0;
+  background: linear-gradient(180deg, var(--chrome-1), var(--chrome-2) 45%, var(--chrome-3) 60%, var(--chrome-2) 85%, var(--chrome-1));
+  box-shadow: 0 1cqw 1.6cqw rgba(0,0,0,.5);
+  z-index: 3;
+}
+.hub::before { /* bolts */
+  content: "";
+  position: absolute;
+  left: 2.2cqw;
+  top: 1.6cqw; bottom: 1.6cqw;
+  width: 1.6cqw;
+  background:
+    radial-gradient(circle, var(--chrome-1) 0 35%, var(--chrome-3) 45%, transparent 55%) top / 1.6cqw 1.6cqw no-repeat,
+    radial-gradient(circle, var(--chrome-1) 0 35%, var(--chrome-3) 45%, transparent 55%) bottom / 1.6cqw 1.6cqw no-repeat;
+}
+.hub::after {
+  content: "";
+  position: absolute;
+  right: -3.4cqw;
+  top: 50%;
+  width: 6.8cqw; height: 6.8cqw;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--chrome-2) 50%, var(--chrome-3));
+  box-shadow: 0 .6cqw 1cqw rgba(0,0,0,.5);
+}
+.rod {
+  position: absolute;
+  left: 55%;
+  width: 3cqw;
+  transform: translateX(-50%);
+  border-radius: 1.5cqw;
+  background: linear-gradient(90deg, var(--chrome-3), var(--chrome-1) 35%, var(--chrome-2) 65%, var(--chrome-3));
+  box-shadow: .4cqw .4cqw 1cqw rgba(0,0,0,.4);
+  z-index: 2;
+}
+.knob {
+  position: absolute;
+  left: 55%;
+  width: 9.5cqw;
+  height: 9.5cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ff9aa0 0%, #e2283a 28%, #8e0b1a 70%, #4a040c 100%);
+  box-shadow: 0 1.4cqw 2cqw rgba(0,0,0,.55);
+  z-index: 4;
+}
+
+/* ---------- sound toggle ---------- */
+.mute {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  z-index: 20;
+}
+.mute:hover { color: var(--brass-light); }
+.mute:focus-visible { outline: 2px solid var(--brass-light); outline-offset: 2px; }
+.mute svg { width: 22px; height: 22px; }
+.mute .off { display: none; }
+.mute[aria-pressed="true"] .on { display: none; }
+.mute[aria-pressed="true"] .off { display: block; }
+
+canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bulb, .machine.spinning .bulb { animation: none; }
+  .machine.win .cell.hit svg { animation: none; filter: drop-shadow(0 0 1.6cqw var(--glow)); }
+  .bounce.thunk { animation: none; }
+  .machine.idle .bulb, .machine.idle .neon, .machine.idle .arm { animation: none; }
+}
+</style>
+
+<!-- shared gradients for the reel symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g7" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff6a5c"/>
+      <stop offset=".5" stop-color="#e01f2e"/>
+      <stop offset="1" stop-color="#8a0816"/>
+    </linearGradient>
+    <linearGradient id="gBrass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7df9c"/>
+      <stop offset=".5" stop-color="#c99a45"/>
+      <stop offset="1" stop-color="#6e4f1c"/>
+    </linearGradient>
+    <radialGradient id="gGrape" cx=".35" cy=".3" r=".75">
+      <stop offset="0" stop-color="#d9a6ff"/>
+      <stop offset=".4" stop-color="#7d2fc4"/>
+      <stop offset="1" stop-color="#2f0b57"/>
+    </radialGradient>
+    <radialGradient id="gLemon" cx=".38" cy=".32" r=".8">
+      <stop offset="0" stop-color="#fffbd0"/>
+      <stop offset=".45" stop-color="#ffd92e"/>
+      <stop offset="1" stop-color="#c98a00"/>
+    </radialGradient>
+    <linearGradient id="gLeaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9be36a"/>
+      <stop offset="1" stop-color="#2f7a1e"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<main>
+  <div class="stage machine" id="machine">
+    <div class="floor" aria-hidden="true"></div>
+    <div class="topper" aria-hidden="true"><div class="topper-glass"><span class="neon">777</span><div class="ticker"><div class="ticker-track">JACKPOT&nbsp;&nbsp;777&nbsp;&nbsp;JACKPOT&nbsp;&nbsp;777</div></div></div></div>
+    <div class="cabinet reflect">
+      <div class="body">
+        <div class="crown" aria-hidden="true">
+          <span class="bulb" style="--i:0"></span><span class="bulb" style="--i:1"></span><span class="bulb" style="--i:2"></span><span class="bulb" style="--i:3"></span><span class="bulb" style="--i:4"></span><span class="bulb" style="--i:5"></span><span class="bulb" style="--i:6"></span><span class="bulb" style="--i:7"></span><span class="bulb" style="--i:8"></span><span class="bulb" style="--i:9"></span><span class="bulb" style="--i:10"></span>
+        </div>
+        <div class="window">
+          <div class="reels" id="reels" role="img" aria-label="Барабаны"></div>
+          <div class="payline"></div>
+        </div>
+        <div class="tray" aria-hidden="true"><canvas class="tray-coins" id="trayCoins"></canvas></div>
+      </div>
+    </div>
+    <button class="lever reflect" id="lever" type="button" aria-label="Потянуть рычаг">
+      <span class="hub"></span>
+      <span class="arm"><span class="rod" id="rod"></span><span class="knob" id="knob"></span></span>
+    </button>
+  </div>
+</main>
+
+<button class="mute" id="mute" type="button" aria-pressed="false" aria-label="Выключить звук">
+  <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+  <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>
+</button>
+
+<canvas id="fx"></canvas>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- symbols: 0 BAR, 1 grapes, 2 lemon, 3 seven ---------- */
+  const NAMES = ['BAR', 'виноград', 'лимон', 'семёрка'];
+  const SVG = [
+    `<svg viewBox="0 0 100 100"><rect x="6" y="28" width="88" height="44" rx="9" fill="#17100c" stroke="url(#gBrass)" stroke-width="5"/><rect x="13" y="35" width="74" height="30" rx="5" fill="none" stroke="#f7df9c" stroke-opacity=".35" stroke-width="1.5"/><text x="50" y="61.5" text-anchor="middle" font-family="Bungee, Impact, sans-serif" font-size="27" fill="#fbf0d2" letter-spacing="1">BAR</text></svg>`,
+    `<svg viewBox="0 0 100 100"><path d="M50 28 C 52 20, 56 14, 62 10" stroke="#6b4320" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M54 22 C 64 8, 84 10, 88 18 C 78 26, 64 28, 54 22 Z" fill="url(#gLeaf)"/><g fill="url(#gGrape)" stroke="#2a0a4d" stroke-width="1.2"><circle cx="30" cy="40" r="11.5"/><circle cx="50" cy="38" r="11.5"/><circle cx="70" cy="40" r="11.5"/><circle cx="40" cy="57" r="11.5"/><circle cx="60" cy="57" r="11.5"/><circle cx="50" cy="75" r="11.5"/></g><g fill="#fff" fill-opacity=".55"><circle cx="26" cy="36" r="3"/><circle cx="46" cy="34" r="3"/><circle cx="66" cy="36" r="3"/><circle cx="36" cy="53" r="3"/><circle cx="56" cy="53" r="3"/><circle cx="46" cy="71" r="3"/></g></svg>`,
+    `<svg viewBox="0 0 100 100"><path d="M10 52 C 8 47, 11 44, 15 43 C 24 24, 76 24, 85 43 C 89 44, 92 47, 90 52 C 92 57, 89 60, 85 61 C 76 80, 24 80, 15 61 C 11 60, 8 57, 10 52 Z" fill="url(#gLemon)" stroke="#a36d00" stroke-width="1.5"/><ellipse cx="38" cy="40" rx="14" ry="5" fill="#fff" fill-opacity=".55" transform="rotate(-12 38 40)"/><path d="M70 30 C 74 22, 82 20, 86 22 C 82 28, 76 31, 70 30 Z" fill="url(#gLeaf)"/></svg>`,
+    `<svg viewBox="0 0 100 100"><text x="50" y="86" text-anchor="middle" font-family="Bungee, Impact, sans-serif" font-size="88" fill="url(#g7)" stroke="#f7df9c" stroke-width="7" stroke-linejoin="round" paint-order="stroke">7</text><text x="50" y="86" text-anchor="middle" font-family="Bungee, Impact, sans-serif" font-size="88" fill="none" stroke="#5a0610" stroke-width="2" stroke-linejoin="round">7</text></svg>`
+  ];
+
+  const rnd = (n) => {
+    try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+    catch (e) { return Math.floor(Math.random() * n); }
+  };
+
+  // Fixed reel bands, like a real machine: any three neighbours are all different,
+  // every symbol appears exactly twice, so landing stays a fair 1/4 per symbol.
+  const BANDS = [
+    [3, 0, 1, 2, 3, 1, 0, 2],
+    [0, 2, 3, 1, 0, 3, 2, 1],
+    [1, 3, 2, 0, 1, 2, 3, 0]
+  ];
+  const B = 8;
+  const at = (band, p) => band[((p % B) + B) % B];
+
+  /* ---------- reels ---------- */
+  const reelsEl = document.getElementById('reels');
+  const cabinet = document.getElementById('machine');
+  const reels = [];
+
+  function makeCell(s) {
+    const d = document.createElement('div');
+    d.className = 'cell';
+    d.dataset.s = s;
+    d.innerHTML = SVG[s];
+    return d;
+  }
+  function shift(k) { return `translateY(calc(var(--off) - ${k} * var(--cell)))`; }
+
+  function fill(reel, symbols, k) {
+    reel.strip.textContent = '';
+    symbols.forEach((s) => reel.strip.appendChild(makeCell(s)));
+    reel.symbols = symbols;
+    reel.strip.style.transition = 'none';
+    reel.strip.style.transform = shift(k);
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const r = document.createElement('div');
+    r.className = 'reel';
+    const b = document.createElement('div');
+    b.className = 'bounce';
+    const strip = document.createElement('div');
+    strip.className = 'strip';
+    b.appendChild(strip);
+    r.appendChild(b);
+    reelsEl.appendChild(r);
+    const band = BANDS[i];
+    const pos = band.indexOf(3); // opens on 7 7 7
+    const reel = { el: r, bounce: b, strip, symbols: [], band, pos };
+    reels.push(reel);
+    fill(reel, [at(band, pos - 1), at(band, pos), at(band, pos + 1)], 1);
+  }
+  setLabel([3, 3, 3]);
+
+  function setLabel(res) {
+    reelsEl.setAttribute('aria-label', 'Выпало: ' + res.map((s) => NAMES[s]).join(', '));
+  }
+
+  let spinning = false;
+  let winTimer = 0;
+
+  function spin() {
+    if (spinning) return;
+    spinning = true;
+    clearTimeout(winTimer);
+    cabinet.classList.remove('win', 'jackpot', 'win-0', 'win-1', 'win-2', 'win-3', 'idle');
+    reels.forEach((r) => r.strip.querySelectorAll('.hit').forEach((c) => c.classList.remove('hit')));
+    cabinet.classList.add('spinning');
+    lever.classList.add('locked');
+    trayClear();
+
+    const result = [rnd(4), rnd(4), rnd(4)];
+    // first two reels match: the last one holds out longer (timing only, odds untouched)
+    const tease = !reduced && result[0] === result[1];
+    const big = tease && result[0] === 3;
+    const durs = [0, 1, 2].map((i) => (reduced ? 450 + i * 200 : 1250 + i * 430) + (tease && i === 2 ? (big ? 1800 : 1200) : 0));
+    let stopped = 0;
+    startRattle();
+
+    reels.forEach((reel, i) => {
+      const { band, pos } = reel;
+      // the two spots on this band that carry the result; pick one at random
+      const spots = [];
+      band.forEach((s, p) => { if (s === result[i]) spots.push(p); });
+      const target = spots[rnd(spots.length)];
+      const minSteps = (reduced ? 4 + i * 2 : 22 + i * 7) + (tease && i === 2 ? (big ? 24 : 16) : 0);
+      const delta = ((target - pos) % B + B) % B;
+      const steps = delta + B * Math.ceil(Math.max(0, minSteps - delta) / B);
+      const seq = [];
+      for (let p = pos - 1; p <= pos + steps + 1; p++) seq.push(at(band, p));
+      reel.pos = target;
+      fill(reel, seq, 1);
+      void reel.strip.offsetHeight;
+
+      const dur = durs[i];
+      const ease = tease && i === 2 ? 'cubic-bezier(.2,.62,.06,1)' : 'cubic-bezier(.17,.67,.24,1)';
+      reel.strip.style.transition = `transform ${dur}ms ${ease}`;
+      reel.strip.style.transform = shift(seq.length - 2);
+      if (!reduced) reel.strip.classList.add('blur');
+
+      setTimeout(() => reel.strip.classList.remove('blur'), Math.max(0, tease && i === 2 ? dur * 0.55 : dur - 380));
+      setTimeout(() => {
+        // compact the strip to the three visible cells, same picture
+        const L = seq.length;
+        fill(reel, [seq[L - 3], seq[L - 2], seq[L - 1]], 1);
+        reel.bounce.classList.remove('thunk');
+        void reel.bounce.offsetWidth;
+        reel.bounce.classList.add('thunk');
+        sfx.thunk(i);
+        if (tease && i === 1) {
+          cabinet.classList.add('tease');
+          reels[2].el.classList.add('tease');
+          sfx.tension((durs[2] - durs[1]) / 1000, big);
+        }
+        if (i === 2) {
+          cabinet.classList.remove('tease');
+          reels[2].el.classList.remove('tease');
+          sfx.stopTension();
+        }
+        stopped++;
+        if (stopped === 3) finish(result);
+      }, dur);
+    });
+  }
+
+  function finish(res) {
+    stopRattle();
+    spinning = false;
+    cabinet.classList.remove('spinning');
+    lever.classList.remove('locked');
+    setLabel(res);
+    armIdle();
+    if (res[0] === res[1] && res[1] === res[2]) {
+      reels.forEach((r) => r.strip.children[1].classList.add('hit'));
+      cabinet.classList.add('win', 'win-' + res[0]);
+      const jackpot = res[0] === 3;
+      sfx.win(res[0]);
+      trayDrop(jackpot ? 46 : 9 + res[0] * 2, jackpot ? 4900 : 2400);
+      if (jackpot) {
+        // the jackpot plays out in full (~5 s): ticker and music run together, the lever waits
+        coins();
+        cabinet.classList.add('jackpot');
+        spinning = true;
+        lever.classList.add('locked');
+        winTimer = setTimeout(() => {
+          cabinet.classList.remove('win', 'jackpot', 'win-3');
+          spinning = false;
+          lever.classList.remove('locked');
+          armIdle();
+        }, 5350);
+      } else {
+        winTimer = setTimeout(() => cabinet.classList.remove('win', 'win-0', 'win-1', 'win-2'), 3600);
+      }
+    }
+  }
+
+  /* ---------- lever ---------- */
+  const lever = document.getElementById('lever');
+  const rod = document.getElementById('rod');
+  const knob = document.getElementById('knob');
+  let pull = 0, anim = 0;
+
+  function geo() {
+    const h = lever.clientHeight;
+    return { pivot: h * 0.55, top: h * 0.08, bot: h * 0.9 };
+  }
+  function setPull(p) {
+    pull = p;
+    const g = geo();
+    const ky = g.top + p * (g.bot - g.top);
+    rod.style.top = Math.min(g.pivot, ky) + 'px';
+    rod.style.height = Math.abs(ky - g.pivot) + 'px';
+    knob.style.top = ky + 'px';
+    const s = 1 + 0.24 * Math.sin(Math.PI * Math.max(0, Math.min(1, p)));
+    knob.style.transform = `translate(-50%, -50%) scale(${s})`;
+  }
+  function tween(from, to, ms, ease, done) {
+    cancelAnimationFrame(anim);
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / ms);
+      setPull(from + (to - from) * ease(k));
+      if (k < 1) anim = requestAnimationFrame(step);
+      else if (done) done();
+    };
+    anim = requestAnimationFrame(step);
+  }
+  const easeIn = (k) => k * k;
+  const easeBack = (k) => { const c = 1.9; const x = k - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
+
+  function springBack() { tween(pull, 0, reduced ? 200 : 650, easeBack); }
+  function autoPull() {
+    if (spinning || busy) return;
+    busy = true;
+    sfx.unlock();
+    tween(pull, 1, 190, easeIn, () => { sfx.clack(); spin(); springBack(); busy = false; });
+  }
+
+  let busy = false, dragging = false, startY = 0, moved = false, fired = false;
+  const zone = cabinet; // the whole machine, so a tap or swipe anywhere on it pulls the lever
+  zone.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return;
+    if (spinning || busy) return;
+    sfx.unlock();
+    cancelAnimationFrame(anim);
+    dragging = true; moved = false; fired = false;
+    startY = e.clientY - pull * (geo().bot - geo().top);
+    try { zone.setPointerCapture(e.pointerId); } catch (err) {}
+    e.preventDefault();
+  });
+  zone.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const g = geo();
+    const dy = e.clientY - startY;
+    if (Math.abs(dy) > 5) moved = true;
+    setPull(Math.max(0, Math.min(1, dy / (g.bot - g.top))));
+    if (!fired && pull > 0.93) { fired = true; sfx.clack(); spin(); }
+  });
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    if (!moved) { autoPull(); return; }
+    if (!fired && pull > 0.55) { fired = true; sfx.clack(); spin(); }
+    springBack();
+  };
+  zone.addEventListener('pointerup', end);
+  zone.addEventListener('pointercancel', end);
+  lever.addEventListener('click', (e) => e.preventDefault());
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target === muteBtn) return;
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      if (!e.repeat) autoPull();
+    }
+  });
+
+  // idle: after a quiet spell the machine starts calling you over
+  let idleTimer = 0;
+  function armIdle() {
+    cabinet.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { if (!spinning) cabinet.classList.add('idle'); }, 12000);
+  }
+  ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { if (!spinning) armIdle(); }));
+  armIdle();
+
+  addEventListener('resize', () => setPull(pull));
+  setPull(0);
+  document.fonts && document.fonts.ready.then(() => setPull(pull));
+
+  /* ---------- sound ---------- */
+  const muteBtn = document.getElementById('mute');
+  let muted = false;
+  try { muted = localStorage.getItem('slot-muted') === '1'; } catch (e) {}
+  const syncMute = () => {
+    muteBtn.setAttribute('aria-pressed', String(muted));
+    muteBtn.setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
+  };
+  syncMute();
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    syncMute();
+    try { localStorage.setItem('slot-muted', muted ? '1' : '0'); } catch (e) {}
+  });
+
+  const sfx = (() => {
+    let ac = null, noiseBuf = null, master = null, whirr = null, roll = [];
+    function unlock() {
+      try {
+        if (!ac) {
+          ac = new (window.AudioContext || window.webkitAudioContext)();
+          const comp = ac.createDynamicsCompressor();
+          comp.threshold.value = -14; comp.ratio.value = 4;
+          master = ac.createGain(); master.gain.value = 0.9;
+          master.connect(comp).connect(ac.destination);
+          noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+          const d = noiseBuf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        }
+        if (ac.state === 'suspended') ac.resume();
+      } catch (e) { ac = null; }
+    }
+    const ok = () => ac && !muted;
+
+    // filtered noise burst
+    function noise(t, len, { type = 'bandpass', freq = 1000, q = 1, gain = 0.2, attack = 0.001 } = {}) {
+      const src = ac.createBufferSource(); src.buffer = noiseBuf;
+      const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain, t + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      src.connect(f).connect(g).connect(master);
+      src.start(t, Math.random() * 0.5); src.stop(t + len + 0.02);
+      return src;
+    }
+    // single oscillator with optional pitch glide
+    function tone(t, freq, len, gain, type = 'sine', endFreq) {
+      const o = ac.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (endFreq) o.frequency.exponentialRampToValueAtTime(endFreq, t + len);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(g).connect(master);
+      o.start(t); o.stop(t + len + 0.02);
+      return o;
+    }
+    // one legato chime note: soft triangle, high overtones filtered off so nothing squeaks
+    function chime(t, midi, len, gain) {
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(gain * 0.55, t + len);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len + 0.03);
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2200; f.Q.value = 0.5;
+      g.connect(master);
+      f.connect(g);
+      const tri = ac.createOscillator(); tri.type = 'triangle'; tri.frequency.value = freq;
+      tri.connect(f);
+      tri.start(t);
+      tri.stop(t + len + 0.05);
+    }
+    // win jingle: two voices in parallel fourths running down the scale,
+    // a high "ding", a pickup, and round again (~0.76 s per round)
+    const JINGLE = [
+      [86, 81], [84, 79], [81, 77], [79, 74], [77, 72], [74, 69],
+      [72, 67], [69, 65]
+    ];
+    function jingle(t, rounds, gain, transpose = 0, up = false) {
+      const step = 0.08;
+      const seq = up ? JINGLE.slice().reverse() : JINGLE;
+      let k = 0;
+      for (let r = 0; r < rounds; r++) {
+        seq.forEach((chord) => {
+          const fade = r === rounds - 1 ? 1 - (k % JINGLE.length) / (JINGLE.length * 1.6) : 1;
+          chord.forEach((m) => chime(t + k * step, m + transpose, step * 1.02, gain * fade * (m >= 88 ? 0.55 : 1)));
+          k++;
+        });
+      }
+    }
+    // bell: a fundamental with bright, faster-dying overtones
+    function bell(t, f, gain, len = 1.3) {
+      [[1, 1, 1], [2.01, 0.45, 0.6], [3.01, 0.22, 0.4], [4.17, 0.14, 0.3], [5.43, 0.08, 0.2]]
+        .forEach(([m, g, l]) => tone(t, f * m, len * l, gain * g));
+    }
+
+    let lastClink = 0;
+    return {
+      unlock,
+      // a coin landing in the metal tray: dull metallic tap, kept low so it never squeaks
+      clink(soft) {
+        if (!ok()) return; const t = ac.currentTime;
+        if (t - lastClink < 0.045) return; lastClink = t;
+        const v = soft ? 0.5 : 1, d = (Math.random() - 0.5) * 300;
+        noise(t, 0.035, { freq: 2300 + d, q: 2.5, gain: 0.06 * v });
+        tone(t, 1250 + d, 0.09, 0.022 * v);
+        tone(t, 1870 + d * 1.5, 0.06, 0.012 * v);
+      },
+      // lever: ratchet teeth, then a heavy latch
+      clack() {
+        if (!ok()) return; const t = ac.currentTime;
+        for (let k = 0; k < 5; k++) noise(t + k * 0.028, 0.018, { freq: 1100 + k * 80, q: 1.2, gain: 0.12 });
+        noise(t + 0.15, 0.08, { type: 'lowpass', freq: 700, gain: 0.32 });
+        tone(t + 0.15, 110, 0.14, 0.28, 'sine', 50);
+      },
+      // reels in motion: low mechanical hum
+      whirrStart() {
+        if (!ok()) return; this.whirrStop();
+        const t = ac.currentTime;
+        const src = ac.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+        const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 420; f.Q.value = 2;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.07, t + 0.15);
+        src.connect(f).connect(g).connect(master);
+        src.start(t);
+        whirr = { src, g };
+      },
+      whirrStop() {
+        if (!ac || !whirr) return;
+        const { src, g } = whirr; const t = ac.currentTime;
+        g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        src.stop(t + 0.2);
+        whirr = null;
+      },
+      // symbols flicking past the window
+      tick() {
+        if (!ok()) return;
+        noise(ac.currentTime, 0.012, { freq: 550 + Math.random() * 200, q: 0.9, gain: 0.045 });
+      },
+      // reel lands: wooden thud with a latch click
+      thunk(i) {
+        if (!ok()) return; const t = ac.currentTime;
+        noise(t, 0.1, { type: 'lowpass', freq: 900, gain: 0.38 });
+        tone(t, 125 - i * 9, 0.2, 0.36, 'sine', 45);
+        noise(t + 0.005, 0.02, { freq: 700, q: 0.8, gain: 0.1 });
+      },
+      // hold-out: accelerating drum roll over a rising low tone
+      tension(sec, big) {
+        if (!ok()) return; this.stopTension();
+        const t0 = ac.currentTime;
+        let el = 0;
+        while (el < sec) {
+          const p = el / sec;
+          roll.push(noise(t0 + el, 0.06, { freq: 1700, q: 0.8, gain: 0.03 + (big ? 0.12 : 0.09) * p }));
+          el += 0.15 * (1 - p) + 0.032 * p;
+        }
+        roll.push(tone(t0, 55, sec + 0.1, big ? 0.12 : 0.09, 'triangle', big ? 120 : 92));
+      },
+      stopTension() {
+        if (!ac) return;
+        const t = ac.currentTime;
+        roll.forEach((n) => { try { n.stop(t); } catch (e) {} });
+        roll = [];
+      },
+      // win: the casino jingle, coloured per symbol; the jackpot plays it longest
+      // 0 BAR: low and solid, 1 grapes: a step higher, 2 lemons: bright and climbing, 3 sevens: the original
+      win(symbol) {
+        if (!ok()) return; const t = ac.currentTime + 0.05;
+        if (symbol === 3) { jingle(t, 8, 0.055); return; }
+        const [transpose, up] = [[-5, false], [2, false], [3, true]][symbol];
+        jingle(t, 3, 0.055, transpose, up);
+      }
+    };
+  })();
+
+  let rattle = 0;
+  function startRattle() {
+    clearInterval(rattle);
+    sfx.whirrStart();
+    rattle = setInterval(() => sfx.tick(), 65);
+  }
+  function stopRattle() { clearInterval(rattle); sfx.whirrStop(); }
+
+  /* ---------- jackpot coins ---------- */
+  const fx = document.getElementById('fx');
+  const ctx = fx.getContext('2d');
+  function coins() {
+    if (reduced) return;
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    fx.width = innerWidth * dpr; fx.height = innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const box = reelsEl.getBoundingClientRect();
+    const cx = box.left + box.width / 2, cy = box.top + box.height / 2;
+    const base = Math.max(8, box.width / 34);
+    const parts = Array.from({ length: 90 }, () => {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+      const v = 7 + Math.random() * 9;
+      return { x: cx + (Math.random() - 0.5) * box.width * 0.6, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+               r: base * (0.75 + Math.random() * 0.5), rot: Math.random() * 6.28, vr: 0.15 + Math.random() * 0.25 };
+    });
+    const t0 = performance.now();
+    const frame = (t) => {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      let alive = 0;
+      for (const p of parts) {
+        p.vy += 0.42; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        if (p.y - p.r > innerHeight) continue;
+        alive++;
+        const sx = Math.abs(Math.cos(p.rot)) + 0.08;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.scale(sx, 1);
+        const g = ctx.createRadialGradient(-p.r * 0.3, -p.r * 0.3, p.r * 0.1, 0, 0, p.r);
+        g.addColorStop(0, '#fff4c2'); g.addColorStop(0.5, '#e8b44a'); g.addColorStop(1, '#8a5a12');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(110,70,10,.8)'; ctx.lineWidth = p.r * 0.14;
+        ctx.beginPath(); ctx.arc(0, 0, p.r * 0.68, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      }
+      if (alive && t - t0 < 4000) requestAnimationFrame(frame);
+      else ctx.clearRect(0, 0, innerWidth, innerHeight);
+    };
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- coins dropping into the tray ---------- */
+  const tc = document.getElementById('trayCoins');
+  const tctx = tc.getContext('2d');
+  let pile = [], flying = [], heights = null, trayRaf = 0, trayW = 0, trayH = 0, floorY = 0, chuteY = 0, cr = 0;
+  function traySize() {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    const w = tc.clientWidth, h = tc.clientHeight;
+    if (w !== trayW || h !== trayH) {
+      trayW = w; trayH = h;
+      tc.width = Math.round(w * dpr); tc.height = Math.round(h * dpr);
+      pile = []; flying = [];
+    }
+    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const extra = h - tc.parentElement.clientHeight; // canvas reaches above the tray
+    floorY = extra + tc.parentElement.clientHeight * 0.9;
+    chuteY = extra + tc.parentElement.clientHeight * 0.5;
+    cr = w / 26;
+    heights = new Float32Array(Math.ceil(w) + 1);
+    pile.forEach(stamp);
+  }
+  function stamp(c) {
+    const a = Math.max(0, Math.floor(c.x - c.r * 0.85)), b = Math.min(heights.length - 1, Math.ceil(c.x + c.r * 0.85));
+    for (let i = a; i <= b; i++) heights[i] = Math.max(heights[i], floorY - c.y + c.r * 0.22);
+  }
+  function surface(x, r) {
+    let m = 0;
+    const a = Math.max(0, Math.floor(x - r * 0.7)), b = Math.min(heights.length - 1, Math.ceil(x + r * 0.7));
+    for (let i = a; i <= b; i++) m = Math.max(m, heights[i]);
+    return floorY - m;
+  }
+  function drawCoin(x, y, r, squash, spin) {
+    tctx.save();
+    tctx.translate(x, y);
+    if (squash) {
+      // lying flat, seen at an angle: edge first, then the face
+      tctx.fillStyle = '#6b440c';
+      tctx.beginPath(); tctx.ellipse(0, r * 0.12, r, r * 0.34, 0, 0, Math.PI * 2); tctx.fill();
+      tctx.scale(1, 0.34);
+    } else {
+      tctx.scale(Math.abs(Math.cos(spin)) + 0.1, 1);
+    }
+    const g = tctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+    g.addColorStop(0, '#fff4c2'); g.addColorStop(0.5, '#e8b44a'); g.addColorStop(1, '#8a5a12');
+    tctx.fillStyle = g;
+    tctx.beginPath(); tctx.arc(0, 0, r, 0, Math.PI * 2); tctx.fill();
+    tctx.strokeStyle = 'rgba(110,70,10,.8)'; tctx.lineWidth = r * 0.14;
+    tctx.beginPath(); tctx.arc(0, 0, r * 0.68, 0, Math.PI * 2); tctx.stroke();
+    tctx.restore();
+  }
+  function trayFrame() {
+    tctx.clearRect(0, 0, trayW, trayH);
+    const now = performance.now();
+    for (const p of flying) {
+      if (p.done || now < p.at) continue;
+      p.vy += 0.32; p.x += p.vx; p.y += p.vy; p.spin += 0.35;
+      if (p.x < p.r * 1.4 || p.x > trayW - p.r * 1.4) { p.vx = -p.vx; p.x = Math.max(p.r * 1.4, Math.min(trayW - p.r * 1.4, p.x)); }
+      const top = surface(p.x, p.r) - p.r * 0.22;
+      if (p.vy > 0 && p.y >= top) {
+        p.vx *= 0.9;
+        if (!p.bounced && p.vy > 3) { p.bounced = true; p.y = top; p.vy *= -0.3; p.vx *= 0.75; sfx.clink(false); continue; }
+        p.done = true; p.y = Math.max(top, trayH - tc.parentElement.clientHeight + p.r * 0.2);
+        pile.push(p); stamp(p);
+        sfx.clink(true);
+      }
+    }
+    flying = flying.filter((p) => !p.done);
+    for (const c of pile) drawCoin(c.x, c.y, c.r, true);
+    for (const p of flying) if (now >= p.at) drawCoin(p.x, p.y, p.r, false, p.spin);
+    trayRaf = flying.length ? requestAnimationFrame(trayFrame) : 0;
+  }
+  function trayDrop(n, over) {
+    tc.classList.remove('clear');
+    traySize();
+    const t0 = performance.now(), mid = trayW / 2;
+    for (let k = 0; k < n; k++) {
+      const r = cr * (0.85 + Math.random() * 0.3);
+      flying.push({ x: mid + (Math.random() - 0.5) * trayW * 0.22, y: chuteY, r,
+        vx: (Math.random() - 0.5) * trayW * 0.075, vy: 0.5 + Math.random() * 1.5,
+        spin: Math.random() * 6.28, at: t0 + (reduced ? 0 : over * (k / n) + Math.random() * 60) });
+    }
+    if (!trayRaf) trayRaf = requestAnimationFrame(trayFrame);
+  }
+  function trayClear() {
+    if (!pile.length && !flying.length) return;
+    tc.classList.add('clear');
+    setTimeout(() => {
+      if (!tc.classList.contains('clear')) return;
+      cancelAnimationFrame(trayRaf); trayRaf = 0;
+      pile = []; flying = [];
+      tctx.clearRect(0, 0, trayW, trayH);
+    }, 380);
+  }
+  addEventListener('resize', () => { if (pile.length || flying.length) { traySize(); if (!trayRaf) trayFrame(); } });
+})();
+</script>
+
+</html>
