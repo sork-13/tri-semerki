@@ -443,9 +443,9 @@ main {
 .tray-coins {
   position: absolute;
   left: 0;
-  top: -6cqw;
+  top: -18cqw;
   width: 100%;
-  height: calc(100% + 6cqw);
+  height: calc(100% + 18cqw);
   z-index: 1;
   pointer-events: none;
   transition: opacity .35s;
@@ -766,7 +766,7 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
       cabinet.classList.add('win', 'win-' + res[0]);
       const jackpot = res[0] === 3;
       sfx.win(res[0]);
-      trayDrop(jackpot ? 46 : 9 + res[0] * 2, jackpot ? 4900 : 2400);
+      if (jackpot) trayDrop(46, 4900); else trayBurst(9 + res[0] * 2);
       if (jackpot) {
         // the jackpot plays out in full (~5 s): ticker and music run together, the lever waits
         coins();
@@ -982,6 +982,16 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
     let lastClink = 0;
     return {
       unlock,
+      // a coin wobbling flat before it stops: taps speed up and fade, like a spun coin
+      settle(len) {
+        if (!ok()) return; const t = ac.currentTime;
+        let dt = 0.075, k = 0, at = 0;
+        while (at < len && k < 18) {
+          const v = 1 - at / len;
+          noise(t + at, 0.018, { freq: 2600 + k * 40, q: 3, gain: 0.018 * v + 0.004 });
+          at += dt; dt = Math.max(0.018, dt * 0.84); k++;
+        }
+      },
       // a coin landing in the metal tray: dull metallic tap, kept low so it never squeaks
       clink(soft) {
         if (!ok()) return; const t = ac.currentTime;
@@ -1114,7 +1124,7 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
   /* ---------- coins dropping into the tray ---------- */
   const tc = document.getElementById('trayCoins');
   const tctx = tc.getContext('2d');
-  let pile = [], flying = [], heights = null, trayRaf = 0, trayW = 0, trayH = 0, floorY = 0, chuteY = 0, cr = 0;
+  let pile = [], flying = [], heights = null, trayRaf = 0, trayW = 0, trayH = 0, floorY = 0, chuteY = 0, cr = 0, T = 0, last = 0;
   function traySize() {
     const dpr = Math.min(2, devicePixelRatio || 1);
     const w = tc.clientWidth, h = tc.clientHeight;
@@ -1124,9 +1134,10 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
       pile = []; flying = [];
     }
     tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const extra = h - tc.parentElement.clientHeight; // canvas reaches above the tray
-    floorY = extra + tc.parentElement.clientHeight * 0.9;
-    chuteY = extra + tc.parentElement.clientHeight * 0.5;
+    T = tc.parentElement.clientHeight;
+    const extra = h - T; // canvas reaches above the tray
+    floorY = extra + T * 0.9;
+    chuteY = extra + T * 0.5;
     cr = w / 26;
     heights = new Float32Array(Math.ceil(w) + 1);
     pile.forEach(stamp);
@@ -1141,14 +1152,15 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
     for (let i = a; i <= b; i++) m = Math.max(m, heights[i]);
     return floorY - m;
   }
-  function drawCoin(x, y, r, squash, spin) {
+  // flat: 0 = flying face-on and spinning, otherwise the vertical squash of a coin lying (0.34) or wobbling
+  function drawCoin(x, y, r, flat, spin, tilt = 0) {
     tctx.save();
     tctx.translate(x, y);
-    if (squash) {
-      // lying flat, seen at an angle: edge first, then the face
+    if (flat) {
+      tctx.rotate(tilt);
       tctx.fillStyle = '#6b440c';
-      tctx.beginPath(); tctx.ellipse(0, r * 0.12, r, r * 0.34, 0, 0, Math.PI * 2); tctx.fill();
-      tctx.scale(1, 0.34);
+      tctx.beginPath(); tctx.ellipse(0, r * 0.12, r, r * flat, 0, 0, Math.PI * 2); tctx.fill();
+      tctx.scale(1, flat);
     } else {
       tctx.scale(Math.abs(Math.cos(spin)) + 0.1, 1);
     }
@@ -1160,38 +1172,107 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
     tctx.beginPath(); tctx.arc(0, 0, r * 0.68, 0, Math.PI * 2); tctx.stroke();
     tctx.restore();
   }
-  function trayFrame() {
+  // four-point twinkle on a coin that just came to rest
+  function glint(x, y, s, a) {
+    tctx.save();
+    tctx.translate(x, y);
+    tctx.globalAlpha = a;
+    tctx.fillStyle = '#fffbe8';
+    tctx.shadowColor = '#ffd76a'; tctx.shadowBlur = s * 1.2;
+    tctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const ang = i * Math.PI / 4, rr = i % 2 ? s * 0.18 : s;
+      tctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+    }
+    tctx.closePath(); tctx.fill();
+    tctx.restore();
+  }
+  function land(p, now) {
+    p.done = true;
+    p.y = Math.max(p.y, trayH - T + p.r * 0.2);
+    pile.push(p); stamp(p);
+    if (p.mode === 'burst') {
+      p.wob = now; p.wobLen = 650 + Math.random() * 350;
+      sfx.settle(p.wobLen / 1000);
+    } else sfx.clink(true);
+  }
+  function trayFrame(now) {
+    const k = Math.min(2.5, (now - last) / 16.67 || 1); last = now;
     tctx.clearRect(0, 0, trayW, trayH);
-    const now = performance.now();
+    let busy = false;
     for (const p of flying) {
       if (p.done || now < p.at) continue;
-      p.vy += 0.32; p.x += p.vx; p.y += p.vy; p.spin += 0.35;
-      if (p.x < p.r * 1.4 || p.x > trayW - p.r * 1.4) { p.vx = -p.vx; p.x = Math.max(p.r * 1.4, Math.min(trayW - p.r * 1.4, p.x)); }
+      if (!p.out) { p.out = true; if (p.mode === 'burst') sfx.clink(true); }
+      const burst = p.mode === 'burst';
+      p.vy += (burst ? 0.012 * T : 0.32) * k;
+      p.x += p.vx * k; p.y += p.vy * k; p.spin += (burst ? 0.28 : 0.35) * k;
+      const lo = p.r * 1.2, hi = trayW - p.r * 1.2;
+      if (p.x < lo || p.x > hi) { p.vx = -p.vx * 0.7; p.x = Math.max(lo, Math.min(hi, p.x)); }
       const top = surface(p.x, p.r) - p.r * 0.22;
       if (p.vy > 0 && p.y >= top) {
-        p.vx *= 0.9;
-        if (!p.bounced && p.vy > 3) { p.bounced = true; p.y = top; p.vy *= -0.3; p.vx *= 0.75; sfx.clink(false); continue; }
-        p.done = true; p.y = Math.max(top, trayH - tc.parentElement.clientHeight + p.r * 0.2);
-        pile.push(p); stamp(p);
-        sfx.clink(true);
+        p.y = top;
+        if (burst && p.bounces < 3 && p.vy > 0.05 * T) {
+          // springy bounces, each lower than the last
+          p.bounces++; p.vy *= -0.42; p.vx *= 0.7;
+          sfx.clink(p.bounces > 1);
+          continue;
+        }
+        if (!burst && !p.bounced && p.vy > 3) { p.bounced = true; p.vy *= -0.3; p.vx *= 0.75; sfx.clink(false); continue; }
+        land(p, now);
       }
     }
     flying = flying.filter((p) => !p.done);
-    for (const c of pile) drawCoin(c.x, c.y, c.r, true);
-    for (const p of flying) if (now >= p.at) drawCoin(p.x, p.y, p.r, false, p.spin);
-    trayRaf = flying.length ? requestAnimationFrame(trayFrame) : 0;
+    for (const c of pile) {
+      if (c.wob) {
+        const t = (now - c.wob) / c.wobLen;
+        if (t < 1) {
+          // spun coin dying down: rocks faster and faster while the rocking shrinks
+          busy = true;
+          const ph = 18 * t * t + 4 * t, amp = (1 - t) * (1 - t);
+          drawCoin(c.x, c.y - c.r * 0.15 * amp, c.r, 0.34 + 0.3 * amp * Math.abs(Math.sin(ph * 3.2)), 0, 0.22 * amp * Math.sin(ph * 3.2));
+          continue;
+        }
+        if (!c.glintAt) c.glintAt = now;
+      }
+      drawCoin(c.x, c.y, c.r, 0.34);
+    }
+    for (const c of pile) {
+      if (!c.glintAt) continue;
+      const g = (now - c.glintAt) / 450;
+      if (g < 1) { busy = true; glint(c.x - c.r * 0.35, c.y - c.r * 0.12, c.r * (0.5 + 0.7 * Math.sin(Math.PI * g)), Math.sin(Math.PI * g)); }
+    }
+    for (const p of flying) if (now >= p.at) drawCoin(p.x, p.y, p.r, 0, p.spin);
+    trayRaf = flying.length || busy ? requestAnimationFrame(trayFrame) : 0;
   }
+  function kick() { if (!trayRaf) { last = performance.now(); trayRaf = requestAnimationFrame(trayFrame); } }
+  // jackpot: a steady pour from the chute
   function trayDrop(n, over) {
     tc.classList.remove('clear');
     traySize();
     const t0 = performance.now(), mid = trayW / 2;
     for (let k = 0; k < n; k++) {
       const r = cr * (0.85 + Math.random() * 0.3);
-      flying.push({ x: mid + (Math.random() - 0.5) * trayW * 0.22, y: chuteY, r,
+      flying.push({ mode: 'pour', x: mid + (Math.random() - 0.5) * trayW * 0.22, y: chuteY, r,
         vx: (Math.random() - 0.5) * trayW * 0.075, vy: 0.5 + Math.random() * 1.5,
         spin: Math.random() * 6.28, at: t0 + (reduced ? 0 : over * (k / n) + Math.random() * 60) });
     }
-    if (!trayRaf) trayRaf = requestAnimationFrame(trayFrame);
+    kick();
+  }
+  // other triples: coins pop out of the chute in quick volleys, fly in arcs, bounce and spin down
+  function trayBurst(n) {
+    tc.classList.remove('clear');
+    traySize();
+    const t0 = performance.now(), mid = trayW / 2;
+    for (let k = 0; k < n; k++) {
+      const volley = Math.floor(k / 3), side = (k % 3) - 1;
+      const r = cr * (0.9 + Math.random() * 0.25);
+      flying.push({ mode: 'burst', bounces: 0, x: mid + side * cr * 0.6, y: chuteY, r,
+        vx: (side * 0.6 + (Math.random() - 0.5) * 0.9) * 0.13 * T,
+        vy: -(0.13 + Math.random() * 0.06) * T,
+        spin: Math.random() * 6.28,
+        at: t0 + (reduced ? 0 : volley * 520 + (k % 3) * 70 + Math.random() * 40) });
+    }
+    kick();
   }
   function trayClear() {
     if (!pile.length && !flying.length) return;
@@ -1203,7 +1284,7 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
       tctx.clearRect(0, 0, trayW, trayH);
     }, 380);
   }
-  addEventListener('resize', () => { if (pile.length || flying.length) { traySize(); if (!trayRaf) trayFrame(); } });
+  addEventListener('resize', () => { if (pile.length || flying.length) { traySize(); kick(); } });
 })();
 </script>
 
