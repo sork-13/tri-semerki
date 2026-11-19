@@ -979,12 +979,13 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
         .forEach(([m, g, l]) => tone(t, f * m, len * l, gain * g));
     }
 
-    let lastClink = 0;
+    let lastClink = 0, lastSettle = 0;
     return {
       unlock,
       // a coin wobbling flat before it stops: taps speed up and fade, like a spun coin
       settle(len) {
         if (!ok()) return; const t = ac.currentTime;
+        if (t - lastSettle < 0.07) return; lastSettle = t;
         let dt = 0.075, k = 0, at = 0;
         while (at < len && k < 18) {
           const v = 1 - at / len;
@@ -1191,10 +1192,8 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
     p.done = true;
     p.y = Math.max(p.y, trayH - T + p.r * 0.2);
     pile.push(p); stamp(p);
-    if (p.mode === 'burst') {
-      p.wob = now; p.wobLen = 650 + Math.random() * 350;
-      sfx.settle(p.wobLen / 1000);
-    } else sfx.clink(true);
+    p.wob = now; p.wobLen = 650 + Math.random() * 350;
+    sfx.settle(p.wobLen / 1000);
   }
   function trayFrame(now) {
     const k = Math.min(2.5, (now - last) / 16.67 || 1); last = now;
@@ -1211,13 +1210,12 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
       const top = surface(p.x, p.r) - p.r * 0.22;
       if (p.vy > 0 && p.y >= top) {
         p.y = top;
-        if (burst && p.bounces < 3 && p.vy > 0.05 * T) {
+        if (p.bounces < 3 && p.vy > (burst ? 0.05 * T : 0.035 * T)) {
           // springy bounces, each lower than the last
           p.bounces++; p.vy *= -0.42; p.vx *= 0.7;
           sfx.clink(p.bounces > 1);
           continue;
         }
-        if (!burst && !p.bounced && p.vy > 3) { p.bounced = true; p.vy *= -0.3; p.vx *= 0.75; sfx.clink(false); continue; }
         land(p, now);
       }
     }
@@ -1245,15 +1243,15 @@ canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events
     trayRaf = flying.length || busy ? requestAnimationFrame(trayFrame) : 0;
   }
   function kick() { if (!trayRaf) { last = performance.now(); trayRaf = requestAnimationFrame(trayFrame); } }
-  // jackpot: a steady pour from the chute
+  // jackpot: a steady fountain from the chute, same bounces and spin-down as the other triples
   function trayDrop(n, over) {
     tc.classList.remove('clear');
     traySize();
     const t0 = performance.now(), mid = trayW / 2;
     for (let k = 0; k < n; k++) {
       const r = cr * (0.85 + Math.random() * 0.3);
-      flying.push({ mode: 'pour', x: mid + (Math.random() - 0.5) * trayW * 0.22, y: chuteY, r,
-        vx: (Math.random() - 0.5) * trayW * 0.075, vy: 0.5 + Math.random() * 1.5,
+      flying.push({ mode: 'burst', bounces: 0, x: mid + (Math.random() - 0.5) * cr * 1.6, y: chuteY, r,
+        vx: (Math.random() - 0.5) * 0.28 * T, vy: -(0.1 + Math.random() * 0.08) * T,
         spin: Math.random() * 6.28, at: t0 + (reduced ? 0 : over * (k / n) + Math.random() * 60) });
     }
     kick();
